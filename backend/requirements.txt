@@ -1,0 +1,14 @@
+flask
+flask-cors
+gunicorn
+numpy
+opencv-python
+Pillow
+pylibjpeg
+pylibjpeg-openjpeg
+python-dateutil
+pymupdf
+pdf2docx
+pdfplumber
+openpyxl
+piexif

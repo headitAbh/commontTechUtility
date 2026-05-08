@@ -23,7 +23,7 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
-  max-width: 860px;
+  max-width: 1444px;
   margin: 0 auto;
 }
 
@@ -41,11 +41,12 @@ body {
 .app-header p {
   font-size: 0.9rem;
   opacity: 0.85;
+   max-width: 1444px;
 }
 
 /* ---- Main ---- */
 .app-main {
-  max-width: 860px;
+  max-width: 1444px;
   margin: 40px auto;
   padding: 0 16px;
 }
@@ -487,6 +488,7 @@ body {
 /* ---- Tabs ---- */
 .tab-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 24px;
   background: white;
@@ -496,8 +498,9 @@ body {
 }
 
 .tab-btn {
-  flex: 1;
-  padding: 10px 20px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 16px;
   border: none;
   border-radius: 8px;
   font-size: 0.95rem;
@@ -506,6 +509,8 @@ body {
   background: transparent;
   color: #718096;
   transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .tab-btn:hover {
@@ -571,15 +576,151 @@ body {
   font-size: 0.85rem;
 }
 
+/* ---- QR Code Generator ---- */
+.qrgen-input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.qrgen-url-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.qrgen-url-input:focus {
+  border-color: #1a56db;
+  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.12);
+}
+
+.qrgen-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.qrgen-image-wrap {
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  display: inline-block;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+.qrgen-image {
+  display: block;
+  width: 260px;
+  height: 260px;
+  image-rendering: auto;
+}
+
+.qrgen-url-display {
+  font-size: 0.85rem;
+  color: #718096;
+  word-break: break-all;
+  text-align: center;
+  max-width: 400px;
+}
+
 /* ---- Footer ---- */
 .app-footer {
-  text-align: center;
-  padding: 24px;
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
   color: #a0aec0;
+  padding: 32px 24px 24px;
+  margin-top: 40px;
+  font-size: 0.84rem;
+}
+
+.footer-inner {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-logo {
+  font-size: 2rem;
+  color: #05af5a;
+  line-height: 1;
+}
+
+.footer-company {
+  font-size: 1.15rem;
+  font-weight: 200;
+  color: #09e66c;
+  letter-spacing: 0.02em;
+}
+
+.footer-tagline {
   font-size: 0.82rem;
+  color: #a0aec0;
+  margin-top: 2px;
+}
+
+.footer-tagline strong {
+  color: #f6ad55;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.footer-link {
+  color: #90cdf4;
+  text-decoration: none;
+  transition: color 0.18s;
+}
+
+.footer-link:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.footer-sep {
+  color: #4a5568;
+}
+
+.footer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #718096;
+  border-top: 1px solid #2d3748;
+  padding-top: 14px;
+  width: 100%;
+  text-align: center;
 }
 
 /* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .tab-btn {
+    flex: 1 1 calc(50% - 4px);
+    font-size: 0.82rem;
+    padding: 9px 8px;
+  }
+}
+
 @media (max-width: 600px) {
   .app-header {
     padding: 16px;
@@ -592,5 +733,16 @@ body {
   }
   .field-label {
     width: 130px;
+  }
+  .tab-bar {
+    gap: 3px;
+    padding: 4px;
+    border-radius: 10px;
+  }
+  .tab-btn {
+    flex: 1 1 calc(50% - 3px);
+    font-size: 0.78rem;
+    padding: 8px 6px;
+    border-radius: 7px;
   }
 }

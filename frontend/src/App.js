@@ -706,6 +706,111 @@ function PdfConverter() {
   );
 }
 
+function QrCodeGenerator() {
+  const [url, setUrl] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleGenerate = async () => {
+    const trimmed = url.trim();
+    if (!trimmed) { setError('Please enter a URL or text'); return; }
+    setLoading(true);
+    setError(null);
+    setQrDataUrl(null);
+    try {
+      const QRCode = (await import('qrcode')).default;
+      const dataUrl = await QRCode.toDataURL(trimmed, { width: 512, margin: 4, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } });
+      setQrDataUrl(dataUrl);
+    } catch {
+      setError('Failed to generate QR code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.href = qrDataUrl;
+    link.download = 'qrcode.png';
+    link.click();
+  };
+
+  const handleShare = async () => {
+    if (navigator.share && navigator.canShare) {
+      try {
+        const res = await fetch(qrDataUrl);
+        const blob = await res.blob();
+        const file = new File([blob], 'qrcode.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'QR Code', text: url });
+          return;
+        }
+      } catch { /* fall through to clipboard */ }
+    }
+    // Fallback: copy original URL to clipboard
+    try {
+      await navigator.clipboard.writeText(url.trim());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('Share not supported on this browser.');
+    }
+  };
+
+  const handleReset = () => {
+    setUrl('');
+    setQrDataUrl(null);
+    setError(null);
+    setCopied(false);
+  };
+
+  return (
+    <div className="upload-section">
+      <div className="qrgen-input-row">
+        <input
+          type="text"
+          className="qrgen-url-input"
+          placeholder="Enter URL or any text..."
+          value={url}
+          onChange={(e) => { setUrl(e.target.value); setQrDataUrl(null); setError(null); }}
+          onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+        />
+        <button
+          className="btn btn-primary"
+          onClick={handleGenerate}
+          disabled={!url.trim() || loading}
+        >
+          {loading ? 'Generating...' : 'Generate QR'}
+        </button>
+      </div>
+
+      {error && <div className="error-box">{error}</div>}
+
+      {qrDataUrl && (
+        <div className="qrgen-result">
+          <div className="qrgen-image-wrap">
+            <img src={qrDataUrl} alt="Generated QR Code" className="qrgen-image" />
+          </div>
+          <p className="qrgen-url-display">{url}</p>
+          <div className="action-buttons center">
+            <button className="btn btn-primary" onClick={handleDownload}>
+              &#8595; Download PNG
+            </button>
+            <button className="btn btn-secondary" onClick={handleShare}>
+              {copied ? <>&#10003; URL Copied!</> : <>&#8679; Share</>}
+            </button>
+            <button className="btn btn-secondary" onClick={handleReset}>
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [mode, setMode] = useState('qr');
   const [file, setFile] = useState(null);
@@ -853,9 +958,9 @@ export default function App() {
       <header className="app-header">
         <div className="header-content">
           <div className="logo">&#9632;</div>
-          <div>
-            <h1>Common Utility Converters PDF TO JPG, WORD AND EXCEL</h1>
-            <p>Upload a PDF file to convert it to JPG, Word, or Excel formats</p>
+          <div className='container-fluid'>
+            <h1>Adhar QrCode Decoder and  Converters PDF TO JPG, WORD AND EXCEL, Generate QrCode</h1>
+            {/* <p>Upload a PDF file to convert it to JPG, Word, or Excel formats</p> */}
           </div>
         </div>
       </header>
@@ -866,7 +971,7 @@ export default function App() {
             className={`tab-btn${mode === 'qr' ? ' active' : ''}`}
             onClick={() => setMode('qr')}
           >
-            QR Decoder
+            QR Decoder(Aadhar Only)
           </button>
           <button
             className={`tab-btn${mode === 'pdf' ? ' active' : ''}`}
@@ -892,12 +997,19 @@ export default function App() {
           >
             Compress PDF
           </button>
+          <button
+            className={`tab-btn${mode === 'qrgen' ? ' active' : ''}`}
+            onClick={() => setMode('qrgen')}
+          >
+            QR Code Generator
+          </button>
         </div>
 
         {mode === 'pdf' && <PdfConverter />}
         {mode === 'word' && <PdfToWord />}
         {mode === 'excel' && <PdfToExcel />}
         {mode === 'compress' && <CompressPdf />}
+        {mode === 'qrgen' && <QrCodeGenerator />}
 
         {mode === 'qr' && !result && (
           <div className="upload-section">
@@ -981,7 +1093,28 @@ export default function App() {
       </main>
 
       <footer className="app-footer">
-        <p>Data is processed locally and never stored.</p>
+        <div className="footer-inner">
+          <div className="footer-brand">
+            <span className="footer-logo">&#9632;</span>
+            <div>
+              <div className="footer-company">DKG DevOps Tech by <strong>Ganotras</strong></div>
+            </div>
+          </div>
+
+          <div className="footer-links">
+            <a href="mailto:support@ganotras.in" className="footer-link">&#9993; support@ganotras.in</a>
+            <span className="footer-sep">|</span>
+            <a href="tel:+91-978-143-1060" className="footer-link">&#128222; +91 978 143 1060</a>
+            <span className="footer-sep">|</span>
+            <a href="https://www.ganotras.in" target="_blank" rel="noopener noreferrer" className="footer-link">&#127760; ganotras.in</a>
+          </div>
+
+          <div className="footer-meta">
+            <span>&#128274; Data is processed securely and never stored.</span>
+            <span className="footer-sep">|</span>
+            <span>&#169; {new Date().getFullYear()} Ganotras. All rights reserved.</span>
+          </div>
+        </div>
       </footer>
     </div>
   );

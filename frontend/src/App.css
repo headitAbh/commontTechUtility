@@ -629,6 +629,146 @@ body {
   max-width: 400px;
 }
 
+.qrgen-section-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 14px;
+}
+
+.qrgen-passcode-toggle {
+  margin-bottom: 14px;
+}
+
+.qrgen-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #4a5568;
+  cursor: pointer;
+  user-select: none;
+}
+
+.qrgen-toggle-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #1a56db;
+  cursor: pointer;
+}
+
+.qrgen-passcode-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.qrgen-encrypted-notice {
+  background: #fefcbf;
+  border: 1px solid #f6e05e;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #744210;
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.qrgen-hint-display {
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: #975a16;
+}
+
+.qrgen-passcode-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.qrgen-no-recovery-warn {
+  background: #fff5f5;
+  border: 1px solid #fc8181;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.83rem;
+  color: #c53030;
+  line-height: 1.5;
+}
+
+.qrgen-hint-banner {
+  background: #fffbeb;
+  border: 1px solid #f6e05e;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  color: #744210;
+}
+
+.qrgen-divider {
+  border: none;
+  border-top: 2px dashed #e2e8f0;
+  margin: 28px 0 20px;
+}
+
+.qrgen-decode-hint {
+  font-size: 0.85rem;
+  color: #718096;
+  margin-bottom: 14px;
+}
+
+.qrgen-decode-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qrgen-decode-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: 'Courier New', monospace;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.2s;
+  color: #2d3748;
+}
+
+.qrgen-decode-input:focus {
+  border-color: #1a56db;
+  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.12);
+}
+
+.qrgen-decode-result {
+  background: #f0fff4;
+  border: 1px solid #68d391;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.qrgen-decode-result-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #276749;
+  margin-bottom: 6px;
+}
+
+.qrgen-decode-result-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a202c;
+  word-break: break-all;
+}
+
 /* ---- Footer ---- */
 .app-footer {
   background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);

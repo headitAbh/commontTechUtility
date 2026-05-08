@@ -2,6 +2,7 @@
   "name": "aadhaar-decoder-frontend",
   "version": "1.0.0",
   "private": true,
+  "homepage": "https://abhhealthcare.org/utility",
   "dependencies": {
     "qrcode": "^1.5.4",
     "react": "^18.2.0",

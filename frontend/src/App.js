@@ -706,22 +706,93 @@ function PdfConverter() {
   );
 }
 
+// ---- AES-GCM helpers (Web Crypto API) ----
+const toB64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+async function deriveKey(passcode, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await window.crypto.subtle.importKey(
+    'raw', enc.encode(passcode), 'PBKDF2', false, ['deriveKey']
+  );
+  return window.crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptPayload(text, passcode, hint) {
+  const enc = new TextEncoder();
+  const salt = window.crypto.getRandomValues(new Uint8Array(16));
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(passcode, salt);
+  const ciphertext = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text));
+  const hintPart = hint ? encodeURIComponent(hint.trim()) : '';
+  return `LOCKED:${toB64(salt)}:${toB64(iv)}:${toB64(ciphertext)}:${hintPart}`;
+}
+
+async function decryptPayload(payload, passcode) {
+  const parts = payload.trim().split(':');
+  if (parts[0] !== 'LOCKED' || parts.length < 4) throw new Error('Not an encrypted QR payload');
+  const salt = fromB64(parts[1]);
+  const iv = fromB64(parts[2]);
+  const ciphertext = fromB64(parts[3]);
+  const key = await deriveKey(passcode, salt);
+  const plain = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+  return new TextDecoder().decode(plain);
+}
+
+function extractHint(payload) {
+  const parts = payload.trim().split(':');
+  if (parts[0] !== 'LOCKED' || parts.length < 5) return '';
+  return decodeURIComponent(parts[4] || '');
+}
+
 function QrCodeGenerator() {
+  // --- Generate state ---
   const [url, setUrl] = useState('');
+  const [usePasscode, setUsePasscode] = useState(false);
+  const [passcode, setPasscode] = useState('');
+  const [passcodeHint, setPasscodeHint] = useState('');
+  const [showPasscode, setShowPasscode] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [encryptedPayload, setEncryptedPayload] = useState(null);
+  const [embeddedHint, setEmbeddedHint] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // --- Decode state ---
+  const [decodeInput, setDecodeInput] = useState('');
+  const [decodePasscode, setDecodePasscode] = useState('');
+  const [showDecodePasscode, setShowDecodePasscode] = useState(false);
+  const [decodeResult, setDecodeResult] = useState(null);
+  const [decodeError, setDecodeError] = useState(null);
+  const [decodeCopied, setDecodeCopied] = useState(false);
+
   const handleGenerate = async () => {
     const trimmed = url.trim();
     if (!trimmed) { setError('Please enter a URL or text'); return; }
+    if (usePasscode && !passcode.trim()) { setError('Please enter a passcode to protect the QR'); return; }
     setLoading(true);
     setError(null);
     setQrDataUrl(null);
+    setEncryptedPayload(null);
     try {
+      let content = trimmed;
+      if (usePasscode && passcode.trim()) {
+        content = await encryptPayload(trimmed, passcode.trim(), passcodeHint);
+        setEncryptedPayload(content);
+        setEmbeddedHint(passcodeHint.trim());
+      }
       const QRCode = (await import('qrcode')).default;
-      const dataUrl = await QRCode.toDataURL(trimmed, { width: 512, margin: 4, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } });
+      const dataUrl = await QRCode.toDataURL(content, {
+        width: 512, margin: 4, errorCorrectionLevel: 'M',
+        color: { dark: '#000000', light: '#ffffff' },
+      });
       setQrDataUrl(dataUrl);
     } catch {
       setError('Failed to generate QR code.');
@@ -747,9 +818,8 @@ function QrCodeGenerator() {
           await navigator.share({ files: [file], title: 'QR Code', text: url });
           return;
         }
-      } catch { /* fall through to clipboard */ }
+      } catch { /* fall through */ }
     }
-    // Fallback: copy original URL to clipboard
     try {
       await navigator.clipboard.writeText(url.trim());
       setCopied(true);
@@ -761,20 +831,50 @@ function QrCodeGenerator() {
 
   const handleReset = () => {
     setUrl('');
+    setPasscode('');
+    setPasscodeHint('');
+    setUsePasscode(false);
     setQrDataUrl(null);
+    setEncryptedPayload(null);
+    setEmbeddedHint('');
     setError(null);
     setCopied(false);
   };
 
+  const handleDecode = async () => {
+    if (!decodeInput.trim()) { setDecodeError('Paste the scanned QR text'); return; }
+    if (!decodePasscode.trim()) { setDecodeError('Enter the passcode'); return; }
+    setDecodeError(null);
+    setDecodeResult(null);
+    try {
+      const result = await decryptPayload(decodeInput.trim(), decodePasscode.trim());
+      setDecodeResult(result);
+    } catch {
+      setDecodeError('Decryption failed — wrong passcode or invalid data.');
+    }
+  };
+
+  const handleCopyDecoded = async () => {
+    try {
+      await navigator.clipboard.writeText(decodeResult);
+      setDecodeCopied(true);
+      setTimeout(() => setDecodeCopied(false), 2000);
+    } catch { /* ignore */ }
+  };
+
   return (
     <div className="upload-section">
+
+      {/* ---- Generate section ---- */}
+      <div className="qrgen-section-label">Generate QR Code</div>
+
       <div className="qrgen-input-row">
         <input
           type="text"
           className="qrgen-url-input"
           placeholder="Enter URL or any text..."
           value={url}
-          onChange={(e) => { setUrl(e.target.value); setQrDataUrl(null); setError(null); }}
+          onChange={(e) => { setUrl(e.target.value); setQrDataUrl(null); setError(null); setEncryptedPayload(null); }}
           onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
         />
         <button
@@ -786,20 +886,66 @@ function QrCodeGenerator() {
         </button>
       </div>
 
+      {/* Passcode toggle */}
+      <div className="qrgen-passcode-toggle">
+        <label className="qrgen-toggle-label">
+          <input
+            type="checkbox"
+            checked={usePasscode}
+            onChange={(e) => { setUsePasscode(e.target.checked); if (!e.target.checked) { setPasscode(''); setEncryptedPayload(null); } }}
+          />
+          <span>&#128274; Protect with passcode (AES-256 encrypted QR)</span>
+        </label>
+      </div>
+
+      {usePasscode && (
+        <div className="qrgen-passcode-block">
+          <div className="qrgen-passcode-row">
+            <input
+              type={showPasscode ? 'text' : 'password'}
+              className="qrgen-url-input"
+              placeholder="Enter passcode..."
+              value={passcode}
+              onChange={(e) => setPasscode(e.target.value)}
+            />
+            <button className="btn btn-secondary" onClick={() => setShowPasscode(!showPasscode)}>
+              {showPasscode ? <>&#128065; Hide</> : <>&#128065; Show</>}
+            </button>
+          </div>
+          <input
+            type="text"
+            className="qrgen-url-input"
+            placeholder="Passcode hint (optional, visible in QR — e.g. 'dog\'s name')"
+            value={passcodeHint}
+            onChange={(e) => setPasscodeHint(e.target.value)}
+            maxLength={80}
+          />
+          <div className="qrgen-no-recovery-warn">
+            &#9888; <strong>No recovery possible.</strong> If the passcode is forgotten, the encrypted data cannot be retrieved. Save your passcode securely before generating.
+          </div>
+        </div>
+      )}
+
       {error && <div className="error-box">{error}</div>}
 
       {qrDataUrl && (
         <div className="qrgen-result">
+          {encryptedPayload && (
+            <div className="qrgen-encrypted-notice">
+              &#128274; This QR is encrypted. Only someone with the passcode can read it.
+              {embeddedHint && <><br /><span className="qrgen-hint-display">&#128273; Hint: <em>{embeddedHint}</em></span></>}
+            </div>
+          )}
           <div className="qrgen-image-wrap">
             <img src={qrDataUrl} alt="Generated QR Code" className="qrgen-image" />
           </div>
-          <p className="qrgen-url-display">{url}</p>
+          <p className="qrgen-url-display">{encryptedPayload ? '(encrypted content)' : url}</p>
           <div className="action-buttons center">
             <button className="btn btn-primary" onClick={handleDownload}>
               &#8595; Download PNG
             </button>
             <button className="btn btn-secondary" onClick={handleShare}>
-              {copied ? <>&#10003; URL Copied!</> : <>&#8679; Share</>}
+              {copied ? <>&#10003; Copied!</> : <>&#8679; Share</>}
             </button>
             <button className="btn btn-secondary" onClick={handleReset}>
               Clear
@@ -807,6 +953,59 @@ function QrCodeGenerator() {
           </div>
         </div>
       )}
+
+      {/* ---- Decode section ---- */}
+      <div className="qrgen-divider" />
+      <div className="qrgen-section-label">&#128275; Decode Encrypted QR</div>
+      <p className="qrgen-decode-hint">Scan the protected QR with any scanner, paste the text below, then enter the passcode to reveal the original content.</p>
+
+      <div className="qrgen-decode-area">
+        <textarea
+          className="qrgen-decode-input"
+          rows={4}
+          placeholder="Paste scanned QR text here (e.g. LOCKED:...)..."
+          value={decodeInput}
+          onChange={(e) => { setDecodeInput(e.target.value); setDecodeResult(null); setDecodeError(null); }}
+        />
+        {decodeInput.trim().startsWith('LOCKED:') && extractHint(decodeInput) && (
+          <div className="qrgen-hint-banner">
+            &#128273; Passcode hint: <strong>{extractHint(decodeInput)}</strong>
+          </div>
+        )}
+        <div className="qrgen-passcode-row">
+          <input
+            type={showDecodePasscode ? 'text' : 'password'}
+            className="qrgen-url-input"
+            placeholder="Enter passcode..."
+            value={decodePasscode}
+            onChange={(e) => { setDecodePasscode(e.target.value); setDecodeResult(null); setDecodeError(null); }}
+            onKeyDown={(e) => e.key === 'Enter' && handleDecode()}
+          />
+          <button className="btn btn-secondary" onClick={() => setShowDecodePasscode(!showDecodePasscode)}>
+            {showDecodePasscode ? <>&#128065; Hide</> : <>&#128065; Show</>}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleDecode}
+            disabled={!decodeInput.trim() || !decodePasscode.trim()}
+          >
+            Decode
+          </button>
+        </div>
+
+        {decodeError && <div className="error-box">{decodeError}</div>}
+
+        {decodeResult && (
+          <div className="qrgen-decode-result">
+            <div className="qrgen-decode-result-label">&#10003; Decoded content:</div>
+            <div className="qrgen-decode-result-text">{decodeResult}</div>
+            <button className="btn btn-secondary" style={{ marginTop: '8px' }} onClick={handleCopyDecoded}>
+              {decodeCopied ? <>&#10003; Copied!</> : 'Copy'}
+            </button>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

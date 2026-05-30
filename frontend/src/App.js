@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
-
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 const API_URL = process.env.REACT_APP_API_URL || '';
-
+const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY || '';
 const FIELD_LABELS = {
   name: 'Name',
   dob: 'Date of Birth',
@@ -83,7 +84,10 @@ function AadhaarResult({ result }) {
                 </span>
               </div>
             ))}
+
+
         </div>
+
       </div>
     </div>
   );
@@ -1049,8 +1053,8 @@ export default function App() {
     // corner handles
     const hs = 8;
     ctx.fillStyle = '#f6ad55';
-    [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([cx,cy]) => {
-      ctx.fillRect(cx - hs/2, cy - hs/2, hs, hs);
+    [[x, y], [x + w, y], [x, y + h], [x + w, y + h]].forEach(([cx, cy]) => {
+      ctx.fillRect(cx - hs / 2, cy - hs / 2, hs, hs);
     });
   }, [cropSel]);
 
@@ -1152,13 +1156,126 @@ export default function App() {
     setCropSel(null);
   };
 
+  // ---- aiABH Tab ----
+
+  function AiABHTab() {
+    const [txtAny, setTxtAny] = useState('');
+    const [response, setResponse] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const inputRef = useRef();
+    // Get API key from env or window for robustness
+    const apiKey = '26c5006d-88ff-4d00-8591-56b31bb261ae';
+
+    // Handle up arrow key to trigger Go
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowUp') {
+        handleGo();
+      }
+    };
+
+    const handleGo = async (txt) => {
+      if (!txt.trim()) return;
+      if (!apiKey) {
+        setError('API key is missing. Please set REACT_APP_OPENAI_API_KEY in your environment.');
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      setResponse('');
+      let markdown = '';
+      let result = '';
+      try {
+        const res = await fetch('https://api.sambanova.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            stream: true,
+            model: 'gpt-oss-120b',
+            messages: [
+              {
+                role: 'user',
+                content: `Generate a detail  for the title: "${txt}". Include an introduction, main points, and a conclusion.`
+              }
+            ]
+          })
+        });
+        if (!res.body) throw new Error('No response body');
+        const reader = res.body.getReader();
+        let result = '';
+        let decoder = new TextDecoder();
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          chunk.split('\n').forEach(line => {
+            if (line.trim().startsWith('data:')) {
+              try {
+                const data = JSON.parse(line.replace('data: ', '').trim());
+                const delta = data.choices?.[0]?.delta;
+                if (delta && delta.role === 'assistant' && delta.content) {
+                  result += delta.content;
+                }
+              } catch (e) { /* ignore parse errors for non-data lines */ }
+            }
+          });
+        }
+        setResponse(result || 'No content generated.');
+      } catch (e) {
+        setError('Network or API error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <div className="upload-section">
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24 }}>
+          <input
+            ref={inputRef}
+            type="text"
+            name="txtAny"
+            className="qrgen-url-input"
+            placeholder="Enter your prompt..."
+            value={txtAny}
+            onChange={e => setTxtAny(e.target.value)}
+            onKeyDown={handleKeyDown}
+            style={{ flex: 1 }}
+            disabled={loading}
+          />
+          <button className="btn btn-primary" onClick={async () => await handleGo(txtAny)} disabled={loading}>
+            {loading ? 'Loading...' : (<><span role="img" aria-label="Go">&#8593;</span> Go</>)}
+          </button>
+        </div>
+        {/* Hidden textarea removed for cleaner UI */}
+        <div>
+          <label style={{ fontWeight: 600, color: '#1a202c' }}>Preview:</label>
+          <div className="border rounded p-3 mb-3 bg-light aiabh-markdown-preview" style={{ minHeight: 350, overflowY: 'auto' }}>
+            {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
+            {loading ? <div>Loading...</div> : (
+              <div className="aiabh-markdown-preview">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml={false}>
+                  {response}
+                </ReactMarkdown>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  // ---- END AiABHTab ----
+
   return (
     <div className="app">
       <header className="app-header">
         <div className="header-content">
           <div className="logo">&#9632;</div>
           <div className='container-fluid'>
-            <h1>Adhar QrCode Decoder and  Converters PDF TO JPG, WORD AND EXCEL, Generate QrCode</h1>
+            <h1>DKGConvGenZ</h1>
             {/* <p>Upload a PDF file to convert it to JPG, Word, or Excel formats</p> */}
           </div>
         </div>
@@ -1202,13 +1319,21 @@ export default function App() {
           >
             QR Code Generator
           </button>
+          <button className={`tab-btn${mode === 'aiABH' ? ' active' : ''}`} onClick={() => setMode('aiABH')}>
+            aiABH
+          </button>
         </div>
 
         {mode === 'pdf' && <PdfConverter />}
         {mode === 'word' && <PdfToWord />}
         {mode === 'excel' && <PdfToExcel />}
         {mode === 'compress' && <CompressPdf />}
+
+
+
+        {mode === 'aiABH' && <AiABHTab />}
         {mode === 'qrgen' && <QrCodeGenerator />}
+
 
         {mode === 'qr' && !result && (
           <div className="upload-section">

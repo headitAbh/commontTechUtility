@@ -1,3 +1,22 @@
+/* Style markdown tables in aiABH preview */
+.aiabh-markdown-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+}
+.aiabh-markdown-preview th, .aiabh-markdown-preview td {
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+  text-align: left;
+  background: #fff;
+}
+.aiabh-markdown-preview th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+.aiabh-markdown-preview tr:nth-child(even) td {
+  background: #f8fafc;
+}
 * {
   box-sizing: border-box;
   margin: 0;
